@@ -17,8 +17,8 @@ import (
 	"time"
 	"unicode/utf8"
 
-	. "github.com/benhoyt/goawk/internal/ast"
-	. "github.com/benhoyt/goawk/lexer"
+	. "github.com/gthd/goawk/internal/ast"
+	. "github.com/gthd/goawk/lexer"
 )
 
 // Call builtin function specified by "op" with given args

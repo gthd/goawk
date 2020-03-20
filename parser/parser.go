@@ -12,8 +12,8 @@ import (
 	"strconv"
 	"strings"
 
-	. "github.com/benhoyt/goawk/internal/ast"
-	. "github.com/benhoyt/goawk/lexer"
+	. "github.com/gthd/goawk/internal/ast"
+	. "github.com/gthd/goawk/lexer"
 )
 
 // ParseError (actually *ParseError) is the type of error returned by

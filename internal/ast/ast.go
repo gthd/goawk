@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	. "github.com/benhoyt/goawk/lexer"
+	. "github.com/gthd/goawk/lexer"
 )
 
 // Stmts is a block containing multiple statements.

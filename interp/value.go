@@ -7,7 +7,7 @@ import (
 	"math"
 	"strconv"
 
-	"github.com/benhoyt/goawk/internal/strutil"
+	"github.com/gthd/goawk/internal/strutil"
 )
 
 type valueType uint8

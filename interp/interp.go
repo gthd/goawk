@@ -23,9 +23,9 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	. "github.com/benhoyt/goawk/internal/ast"
-	. "github.com/benhoyt/goawk/lexer"
-	. "github.com/benhoyt/goawk/parser"
+	. "github.com/gthd/goawk/internal/ast"
+	. "github.com/gthd/goawk/lexer"
+	. "github.com/gthd/goawk/parser"
 )
 
 var (
