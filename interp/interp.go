@@ -298,7 +298,7 @@ func ExecProgram(program *Program, config *Config) (int, error) {
 // reader (nil means use os.Stdin) and writes output to stdout (nil
 // means use a buffered version of os.Stdout).
 func Exec(source, fieldSep string, input io.Reader, output io.Writer) error {
-	prog, err := ParseProgram([]byte(source), nil)
+	prog, err, _ := ParseProgram([]byte(source), nil)
 	if err != nil {
 		return err
 	}

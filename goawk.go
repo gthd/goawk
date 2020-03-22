@@ -179,7 +179,7 @@ func main() {
 		DebugTypes:  debugTypes,
 		DebugWriter: os.Stderr,
 	}
-	prog, err := parser.ParseProgram(src, parserConfig)
+	prog, err, _ := parser.ParseProgram(src, parserConfig)
 	if err != nil {
 		errMsg := fmt.Sprintf("%s", err)
 		if err, ok := err.(*parser.ParseError); ok {

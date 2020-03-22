@@ -48,7 +48,7 @@ type ParserConfig struct {
 // ParseProgram parses an entire AWK program, returning the *Program
 // abstract syntax tree or a *ParseError on error. "config" describes
 // the parser configuration (and is allowed to be nil).
-func ParseProgram(src []byte, config *ParserConfig) (prog *Program, err error) {
+func ParseProgram(src []byte, config *ParserConfig) (prog *Program, err error, varTypes map[string]map[string]typeInfo) {
 	defer func() {
 		// The parser uses panic with a *ParseError to signal parsing
 		// errors internally, and they're caught here. This
@@ -68,7 +68,7 @@ func ParseProgram(src []byte, config *ParserConfig) (prog *Program, err error) {
 	}
 	p.initResolve()
 	p.next() // initialize p.tok
-	return p.program(), nil
+	return p.program(), nil, p.varTypes
 }
 
 // Program is the abstract syntax tree for an entire AWK program.
