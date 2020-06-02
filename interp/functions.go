@@ -289,7 +289,7 @@ func (p *interp) callUser(index int, args []Expr) (value, error) {
 
 	// Execute the function!
 	p.callDepth++
-	err := p.executes(f.Body)
+	err, _ := p.executes(f.Body)
 	p.callDepth--
 
 	// Pop the locals off the stack

@@ -199,10 +199,11 @@ type Config struct {
 // config, returning the exit status code of the program. Error is nil
 // on successful execution of the program, even if the program returns
 // a non-zero status code.
-func ExecProgram(program *Program, config *Config) (int, error) {
+func ExecProgram(program *Program, config *Config) (int, error, float64) {
 	if len(config.Vars)%2 != 0 {
-		return 0, newError("length of config.Vars must be a multiple of 2, not %d", len(config.Vars))
+		return 0, newError("length of config.Vars must be a multiple of 2, not %d", len(config.Vars)), 0
 	}
+	res := float64(0)
 
 	p := &interp{program: program}
 
@@ -232,7 +233,7 @@ func ExecProgram(program *Program, config *Config) (int, error) {
 	p.noFileReads = config.NoFileReads
 	err := p.initNativeFuncs(config.Funcs)
 	if err != nil {
-		return 0, err
+		return 0, err, 0
 	}
 
 	// Setup ARGV and other variables from config
@@ -247,7 +248,7 @@ func ExecProgram(program *Program, config *Config) (int, error) {
 	for i := 0; i < len(config.Vars); i += 2 {
 		err := p.setVarByName(config.Vars[i], config.Vars[i+1])
 		if err != nil {
-			return 0, err
+			return 0, err, 0
 		}
 	}
 
@@ -275,22 +276,22 @@ func ExecProgram(program *Program, config *Config) (int, error) {
 	// Execute the program! BEGIN, then pattern/actions, then END
 	err = p.execBeginEnd(program.Begin)
 	if err != nil && err != errExit {
-		return 0, err
+		return 0, err, 0
 	}
 	if program.Actions == nil && program.End == nil {
-		return p.exitStatus, nil
+		return p.exitStatus, nil, 0
 	}
 	if err != errExit {
-		err = p.execActions(program.Actions)
+		err, res = p.execActions(program.Actions)
 		if err != nil && err != errExit {
-			return 0, err
+			return 0, err, 0
 		}
 	}
 	err = p.execBeginEnd(program.End)
 	if err != nil && err != errExit {
-		return 0, err
+		return 0, err, 0
 	}
-	return p.exitStatus, nil
+	return p.exitStatus, nil, res
 }
 
 // Exec provides a simple way to parse and execute an AWK program
@@ -308,14 +309,14 @@ func Exec(source, fieldSep string, input io.Reader, output io.Writer) error {
 		Error:  ioutil.Discard,
 		Vars:   []string{"FS", fieldSep},
 	}
-	_, err = ExecProgram(prog, config)
+	_, err, _ = ExecProgram(prog, config)
 	return err
 }
 
 // Execute BEGIN or END blocks (may be multiple)
 func (p *interp) execBeginEnd(beginEnd []Stmts) error {
 	for _, statements := range beginEnd {
-		err := p.executes(statements)
+		err, _ := p.executes(statements)
 		if err != nil {
 			return err
 		}
@@ -324,8 +325,9 @@ func (p *interp) execBeginEnd(beginEnd []Stmts) error {
 }
 
 // Execute pattern-action blocks (may be multiple)
-func (p *interp) execActions(actions []Action) error {
+func (p *interp) execActions(actions []Action) (error, float64) {
 	inRange := make([]bool, len(actions))
+	res := float64(0)
 lineLoop:
 	for {
 		// Read and setup next line of input
@@ -334,7 +336,7 @@ lineLoop:
 			break
 		}
 		if err != nil {
-			return err
+			return err, 0
 		}
 		p.setLine(line)
 
@@ -350,7 +352,7 @@ lineLoop:
 				// Single boolean pattern
 				v, err := p.eval(action.Pattern[0])
 				if err != nil {
-					return err
+					return err, 0
 				}
 				matched = v.boolean()
 			case 2:
@@ -358,7 +360,7 @@ lineLoop:
 				if !inRange[i] {
 					v, err := p.eval(action.Pattern[0])
 					if err != nil {
-						return err
+						return err, 0
 					}
 					inRange[i] = v.boolean()
 				}
@@ -366,7 +368,7 @@ lineLoop:
 				if inRange[i] {
 					v, err := p.eval(action.Pattern[1])
 					if err != nil {
-						return err
+						return err, 0
 					}
 					inRange[i] = !v.boolean()
 				}
@@ -379,43 +381,41 @@ lineLoop:
 			if action.Stmts == nil {
 				err := p.printLine(p.output, p.line)
 				if err != nil {
-					return err
+					return err, 0
 				}
 				continue
 			}
 
 			// Execute the body statements
-			err := p.executes(action.Stmts)
+			err, res = p.executes(action.Stmts)
 			if err == errNext {
 				// "next" statement skips straight to next line
 				continue lineLoop
 			}
 			if err != nil {
-				return err
+				return err, 0
 			}
 		}
 	}
-	return nil
+	return nil, res
 }
 
-// Execute a block of multiple statements
-func (p *interp) executes(stmts Stmts) error {
-	for _, s := range stmts {
-		err := p.execute(s)
-		if err != nil {
-			return err
-		}
+// Execute a block of multiple statements -> Changed to executing single statement for properly returning the correct number for res
+func (p *interp) executes(stmts Stmts) (error, float64) {
+	err, res := p.execute(stmts[0])
+	if err != nil {
+		return err, 0
 	}
-	return nil
+	return nil, res
 }
 
 // Execute a single statement
-func (p *interp) execute(stmt Stmt) error {
+func (p *interp) execute(stmt Stmt) (error, float64) {
 	switch s := stmt.(type) {
 	case *ExprStmt:
 		// Expression statement: simply throw away the expression value
-		_, err := p.eval(s.Expr)
-		return err
+		res, err := p.eval(s.Expr)
+		return err, res.n
 
 	case *PrintStmt:
 		// Print OFS-separated args followed by ORS (usually newline)
@@ -425,7 +425,7 @@ func (p *interp) execute(stmt Stmt) error {
 			for i, a := range s.Args {
 				v, err := p.eval(a)
 				if err != nil {
-					return err
+					return err, 0
 				}
 				strs[i] = v.str(p.outputFormat)
 			}
@@ -436,79 +436,79 @@ func (p *interp) execute(stmt Stmt) error {
 		}
 		output, err := p.getOutputStream(s.Redirect, s.Dest)
 		if err != nil {
-			return err
+			return err, 0
 		}
-		return p.printLine(output, line)
+		return p.printLine(output, line), 0
 
 	case *PrintfStmt:
 		// printf(fmt, arg1, arg2, ...): uses our version of sprintf
 		// to build the formatted string and then print that
 		formatValue, err := p.eval(s.Args[0])
 		if err != nil {
-			return err
+			return err, 0
 		}
 		format := p.toString(formatValue)
 		args := make([]value, len(s.Args)-1)
 		for i, a := range s.Args[1:] {
 			args[i], err = p.eval(a)
 			if err != nil {
-				return err
+				return err, 0
 			}
 		}
 		output, err := p.getOutputStream(s.Redirect, s.Dest)
 		if err != nil {
-			return err
+			return err, 0
 		}
 		str, err := p.sprintf(format, args)
 		if err != nil {
-			return err
+			return err, 0
 		}
 		err = writeOutput(output, str)
 		if err != nil {
-			return err
+			return err, 0
 		}
 
-	case *IfStmt:
-		v, err := p.eval(s.Cond)
-		if err != nil {
-			return err
-		}
-		if v.boolean() {
-			return p.executes(s.Body)
-		} else {
-			// Doesn't do anything if s.Else is nil
-			return p.executes(s.Else)
-		}
+	// case *IfStmt:
+	// 	v, err := p.eval(s.Cond)
+	// 	if err != nil {
+	// 		return err, 0
+	// 	}
+	// 	if v.boolean() {
+	// 		return p.executes(s.Body), 0
+	// 	} else {
+	// 		// Doesn't do anything if s.Else is nil
+	// 		return p.executes(s.Else), 0
+	// 	}
 
 	case *ForStmt:
 		// C-like for loop with pre-statement, cond, and post-statement
 		if s.Pre != nil {
-			err := p.execute(s.Pre)
+			err, _ := p.execute(s.Pre)
 			if err != nil {
-				return err
+				return err, 0
 			}
 		}
 		for {
 			if s.Cond != nil {
 				v, err := p.eval(s.Cond)
 				if err != nil {
-					return err
+					return err, 0
 				}
 				if !v.boolean() {
 					break
 				}
 			}
-			err := p.executes(s.Body)
+			err, _ := p.executes(s.Body)
 			if err == errBreak {
 				break
 			}
 			if err != nil && err != errContinue {
-				return err
+				return err, 0
 			}
 			if s.Post != nil {
-				err := p.execute(s.Post)
+				err, _ := p.execute(s.Post)
 				if err != nil {
-					return err
+					return err, 0
 				}
 			}
 		}
@@ -519,9 +519,9 @@ func (p *interp) execute(stmt Stmt) error {
 		for index := range array {
 			err := p.setVar(s.Var.Scope, s.Var.Index, str(index))
 			if err != nil {
-				return err
+				return err, 0
 			}
-			err = p.executes(s.Body)
+			err, _ = p.executes(s.Body)
 			if err == errBreak {
 				break
 			}
@@ -529,7 +529,7 @@ func (p *interp) execute(stmt Stmt) error {
 				continue
 			}
 			if err != nil {
-				return err
+				return err, 0
 			}
 		}
 
@@ -541,22 +541,22 @@ func (p *interp) execute(stmt Stmt) error {
 			var err error
 			v, err = p.eval(s.Value)
 			if err != nil {
-				return err
+				return err, 0
 			}
 		}
-		return returnValue{v}
+		return returnValue{v}, 0
 
 	case *WhileStmt:
 		// Simple "while (cond)" loop
 		for {
 			v, err := p.eval(s.Cond)
 			if err != nil {
-				return err
+				return err, 0
 			}
 			if !v.boolean() {
 				break
 			}
-			err = p.executes(s.Body)
+			err, _ = p.executes(s.Body)
 			if err == errBreak {
 				break
 			}
@@ -564,14 +564,14 @@ func (p *interp) execute(stmt Stmt) error {
 				continue
 			}
 			if err != nil {
-				return err
+				return err, 0
 			}
 		}
 
 	case *DoWhileStmt:
 		// Do-while loop (tests condition after executing body)
 		for {
-			err := p.executes(s.Body)
+			err, _ := p.executes(s.Body)
 			if err == errBreak {
 				break
 			}
@@ -579,11 +579,11 @@ func (p *interp) execute(stmt Stmt) error {
 				continue
 			}
 			if err != nil {
-				return err
+				return err, 0
 			}
 			v, err := p.eval(s.Cond)
 			if err != nil {
-				return err
+				return err, 0
 			}
 			if !v.boolean() {
 				break
@@ -592,28 +592,28 @@ func (p *interp) execute(stmt Stmt) error {
 
 	// Break, continue, next, and exit statements
 	case *BreakStmt:
-		return errBreak
+		return errBreak, 0
 	case *ContinueStmt:
-		return errContinue
+		return errContinue, 0
 	case *NextStmt:
-		return errNext
+		return errNext, 0
 	case *ExitStmt:
 		if s.Status != nil {
 			status, err := p.eval(s.Status)
 			if err != nil {
-				return err
+				return err, 0
 			}
 			p.exitStatus = int(status.num())
 		}
 		// Return special errExit value "caught" by top-level executor
-		return errExit
+		return errExit, 0
 
 	case *DeleteStmt:
 		if len(s.Index) > 0 {
 			// Delete single key from array
 			index, err := p.evalIndex(s.Index)
 			if err != nil {
-				return err
+				return err, 0
 			}
 			array := p.arrays[p.getArrayIndex(s.Array.Scope, s.Array.Index)]
 			delete(array, index) // Does nothing if key isn't present
@@ -625,15 +625,15 @@ func (p *interp) execute(stmt Stmt) error {
 			}
 		}
 
-	case *BlockStmt:
-		// Nested block (just syntax, doesn't do anything)
-		return p.executes(s.Body)
+	// case *BlockStmt:
+	// 	// Nested block (just syntax, doesn't do anything)
+	// 	return p.executes(s.Body), 0
 
 	default:
 		// Should never happen
 		panic(fmt.Sprintf("unexpected stmt type: %T", stmt))
 	}
-	return nil
+	return nil, 0
 }
 
 // Evaluate a single expression, return expression value and error

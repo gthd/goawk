@@ -87,13 +87,15 @@ type Program struct {
 
 // String returns an indented, pretty-printed version of the parsed
 // program.
-func (p *Program) String() string {
+func (p *Program) String() (string, string) {
 	parts := []string{}
+	action := ""
 	for _, ss := range p.Begin {
 		parts = append(parts, "BEGIN {\n"+ss.String()+"}")
 	}
 	for _, a := range p.Actions {
 		parts = append(parts, a.String())
+		action = a.String()
 	}
 	for _, ss := range p.End {
 		parts = append(parts, "END {\n"+ss.String()+"}")
@@ -101,7 +103,7 @@ func (p *Program) String() string {
 	for _, function := range p.Functions {
 		parts = append(parts, function.String())
 	}
-	return strings.Join(parts, "\n\n")
+	return strings.Join(parts, "\n\n"), action
 }
 
 // Parser state
