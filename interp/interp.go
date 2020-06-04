@@ -22,6 +22,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
+	// "reflect"
 
 	. "github.com/gthd/goawk/internal/ast"
 	. "github.com/gthd/goawk/lexer"
@@ -287,10 +288,10 @@ func ExecProgram(program *Program, config *Config) (int, error, float64) {
 			return 0, err, 0
 		}
 	}
-	err = p.execBeginEnd(program.End)
-	if err != nil && err != errExit {
-		return 0, err, 0
-	}
+	// err = p.execBeginEnd(program.End)
+	// if err != nil && err != errExit {
+	// 	return 0, err, 0
+	// }
 	return p.exitStatus, nil, res
 }
 
