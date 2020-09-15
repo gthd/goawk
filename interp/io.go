@@ -55,7 +55,7 @@ func (p *interp) getOutputStream(redirect Token, dest Expr) (io.Writer, error) {
 		return p.output, nil
 	}
 
-	destValue, err := p.eval(dest)
+	destValue, _, err, _ := p.eval(dest)
 	if err != nil {
 		return nil, err
 	}

@@ -121,7 +121,7 @@ func (p *parser) resolveUserCalls(prog *Program) {
 	for i, name := range nativeNames {
 		nativeIndexes[name] = i
 	}
-
+	
 	for _, c := range p.userCalls {
 		// AWK-defined functions take precedence over native Go funcs
 		index, ok := p.functions[c.call.Name]

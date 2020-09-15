@@ -173,7 +173,6 @@ func (p *parser) program() *Program {
 		}
 		p.optionalNewlines()
 	}
-
 	p.resolveUserCalls(prog)
 	p.resolveVars(prog)
 	p.checkMultiExprs()
@@ -453,7 +452,6 @@ func (p *parser) function() Function {
 	body := p.stmtsBrace()
 	p.stopFunction()
 	p.locals = nil
-
 	return Function{name, params, nil, body}
 }
 
@@ -480,7 +478,8 @@ func (p *parser) exprList(parse func() Expr) []Expr {
 // which skips PIPE GETLINE and GREATER expressions.
 
 // Parse a single expression.
-func (p *parser) expr() Expr      { return p.getLine() }
+func (p *parser) expr() Expr  { return p.getLine() }
+
 func (p *parser) printExpr() Expr { return p._assign(p.printCond) }
 
 // Parse an "expr | getline [var]" expression:

@@ -27,14 +27,14 @@ func (p *interp) callBuiltin(op Token, argExprs []Expr) (value, error) {
 	// lvalue arg, so handle them as special cases
 	switch op {
 	case F_SPLIT:
-		strValue, err := p.eval(argExprs[0])
+		strValue, _, err, _ := p.eval(argExprs[0])
 		if err != nil {
 			return null(), err
 		}
 		str := p.toString(strValue)
 		var fieldSep string
 		if len(argExprs) == 3 {
-			sepValue, err := p.eval(argExprs[2])
+			sepValue, _, err, _ := p.eval(argExprs[2])
 			if err != nil {
 				return null(), err
 			}
@@ -50,19 +50,19 @@ func (p *interp) callBuiltin(op Token, argExprs []Expr) (value, error) {
 		return num(float64(n)), nil
 
 	case F_SUB, F_GSUB:
-		regexValue, err := p.eval(argExprs[0])
+		regexValue, _, err, _ := p.eval(argExprs[0])
 		if err != nil {
 			return null(), err
 		}
 		regex := p.toString(regexValue)
-		replValue, err := p.eval(argExprs[1])
+		replValue, _, err, _ := p.eval(argExprs[1])
 		if err != nil {
 			return null(), err
 		}
 		repl := p.toString(replValue)
 		var in string
 		if len(argExprs) == 3 {
-			inValue, err := p.eval(argExprs[2])
+			inValue, _, err, _ := p.eval(argExprs[2])
 			if err != nil {
 				return null(), err
 			}
@@ -89,7 +89,7 @@ func (p *interp) callBuiltin(op Token, argExprs []Expr) (value, error) {
 	// require heap allocation)
 	args := make([]value, 0, 7)
 	for _, a := range argExprs {
-		arg, err := p.eval(a)
+		arg, _, err, _ := p.eval(a)
 		if err != nil {
 			return null(), err
 		}
@@ -252,7 +252,6 @@ func (p *interp) callBuiltin(op Token, argExprs []Expr) (value, error) {
 // its return value (or null value if it doesn't return anything)
 func (p *interp) callUser(index int, args []Expr) (value, error) {
 	f := p.program.Functions[index]
-
 	if p.callDepth >= maxCallDepth {
 		return null(), newError("calling %q exceeded maximum call depth of %d", f.Name, maxCallDepth)
 	}
@@ -266,7 +265,7 @@ func (p *interp) callUser(index int, args []Expr) (value, error) {
 			a := arg.(*VarExpr)
 			arrays = append(arrays, p.getArrayIndex(a.Scope, a.Index))
 		} else {
-			argValue, err := p.eval(arg)
+			argValue, _, err, _ := p.eval(arg)
 			if err != nil {
 				return null(), err
 			}
@@ -289,7 +288,7 @@ func (p *interp) callUser(index int, args []Expr) (value, error) {
 
 	// Execute the function!
 	p.callDepth++
-	err, _ := p.executes(f.Body)
+	err, _, _, _ := p.executes(f.Body)
 	p.callDepth--
 
 	// Pop the locals off the stack
@@ -321,7 +320,7 @@ func (p *interp) callNative(index int, args []Expr) (value, error) {
 	// Build list of args to pass to function
 	values := make([]reflect.Value, 0, 7) // up to 7 args won't require heap allocation
 	for i, arg := range args {
-		a, err := p.eval(arg)
+		a, _, err, _ := p.eval(arg)
 		if err != nil {
 			return null(), err
 		}

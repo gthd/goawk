@@ -213,7 +213,7 @@ func main() {
 		}
 	}
 
-	status, err, _ := interp.ExecProgram(prog, config)
+	status, err, _,_,_ := interp.ExecProgram(prog, config)
 	if err != nil {
 		errorExit("%s", err)
 	}
