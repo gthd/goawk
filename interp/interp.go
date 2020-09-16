@@ -37,7 +37,6 @@ var (
 	crlfNewline = runtime.GOOS == "windows"
 	varRegex    = regexp.MustCompile(`^([_a-zA-Z][_a-zA-Z0-9]*)=(.*)`)
 	myArray map[string]float64
-	newArray map[string]float64
 	myValues map[string]value
 )
 
@@ -452,6 +451,7 @@ func (p *interp) execActions(actions []Action) (error, []float64, []bool, map[st
 	inRange := make([]bool, len(actions))
 	var res []float64
 	var natives []bool
+	var newArray map[string]float64
 	newArray = make(map[string]float64)
 lineLoop:
 	for {
@@ -512,9 +512,9 @@ lineLoop:
 			}
 
 			// Execute the body statements
-			err, res, natives, myArrays := p.executes(action.Stmts)
+			err, res, natives, myBArrays := p.executes(action.Stmts)
 
-			for key, value := range myArrays[0] {
+			for key, value := range myBArrays[0] {
 				newArray[key] = value
 			}
 
@@ -904,14 +904,14 @@ func (p *interp) eval(expr Expr) (value, bool, error, map[string]float64) {
 		// 	myArray[arrayIndex] = right.n - left.n
 		// }
 		right, err = p.evalBinary(e.Op, left, right)
-		myArray[arrayIndex] = right.n + left.n
+		myArray[arrayIndex] = right.n
 		if err != nil {
 			return null(), nativeFunction, err, myArray
 		}
 		err = p.assignAug(e.Left, arrayIndex, fieldIndex, right)
 		if err != nil {
 			return null(), nativeFunction, err, myArray
-		}		
+		}
 		return right, nativeFunction, nil, myArray
 
 	case *CondExpr:
