@@ -449,6 +449,7 @@ func (p *interp) execBeginEnd(beginEnd []Stmts) error {
 // Execute pattern-action blocks (may be multiple)
 func (p *interp) execActions(actions []Action) (error, []float64, []bool, map[string]float64) {
 	inRange := make([]bool, len(actions))
+	var myBArrays []map[string]float64
 	var res []float64
 	var natives []bool
 	var newArray map[string]float64
@@ -512,7 +513,7 @@ lineLoop:
 			}
 
 			// Execute the body statements
-			err, res, natives, myBArrays := p.executes(action.Stmts)		
+			err, res, natives, myBArrays = p.executes(action.Stmts)
 
 			if len(myBArrays) > 0 {
 				for key, value := range myBArrays[0] {
