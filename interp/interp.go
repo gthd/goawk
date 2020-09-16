@@ -512,10 +512,12 @@ lineLoop:
 			}
 
 			// Execute the body statements
-			err, res, natives, myBArrays := p.executes(action.Stmts)
+			err, res, natives, myBArrays := p.executes(action.Stmts)		
 
-			for key, value := range myBArrays[0] {
-				newArray[key] = value
+			if len(myBArrays) > 0 {
+				for key, value := range myBArrays[0] {
+					newArray[key] = value
+				}
 			}
 
 			if err == errNext {
