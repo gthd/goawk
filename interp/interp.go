@@ -372,7 +372,8 @@ func ExecOneThread(program *Program, config *Config, associativeArrays map[int]m
 	}
 
 	for iter, name := range variable_names {
-		err := p.setVar(ScopeGlobal, iter, numStr(strconv.Itoa(p.program.Scalars[name])))
+		s := fmt.Sprintf("%f", p.program.Scalars[name])
+		err := p.setVar(ScopeGlobal, iter, numStr(s))
 		if err != nil {
 			return 0, err, res
 		}
@@ -1119,13 +1120,13 @@ func (p *interp) getVar(scope VarScope, index int) value {
 
 // Set a variable by name (specials and globals only)
 func (p *interp) setVarByName(name, value string) error {
-	index := SpecialVarIndex(name)
+	index := float64(SpecialVarIndex(name))
 	if index > 0 {
-		return p.setVar(ScopeSpecial, index, numStr(value))
+		return p.setVar(ScopeSpecial, int(index), numStr(value))
 	}
 	index, ok := p.program.Scalars[name]
 	if ok {
-		return p.setVar(ScopeGlobal, index, numStr(value))
+		return p.setVar(ScopeGlobal, int(index), numStr(value))
 	}
 	// Ignore variables that aren't defined in program
 	return nil

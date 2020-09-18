@@ -121,7 +121,7 @@ func (p *parser) resolveUserCalls(prog *Program) {
 	for i, name := range nativeNames {
 		nativeIndexes[name] = i
 	}
-	
+
 	for _, c := range p.userCalls {
 		// AWK-defined functions take precedence over native Go funcs
 		index, ok := p.functions[c.call.Name]
@@ -283,7 +283,7 @@ func (p *parser) resolveVars(prog *Program) {
 
 	// Resolve global variables (iteration order is undefined, so
 	// assign indexes basically randomly)
-	prog.Scalars = make(map[string]int)
+	prog.Scalars = make(map[string]float64)
 	prog.Arrays = make(map[string]int)
 	for name, info := range p.varTypes[""] {
 		_, isFunc := p.functions[name]
@@ -299,7 +299,7 @@ func (p *parser) resolveVars(prog *Program) {
 			prog.Arrays[name] = index
 		} else {
 			index = len(prog.Scalars)
-			prog.Scalars[name] = index
+			prog.Scalars[name] = float64(index)
 		}
 		info.index = index
 		p.varTypes[""][name] = info

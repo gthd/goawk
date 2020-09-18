@@ -81,7 +81,7 @@ type Program struct {
 	Actions   []Action
 	End       []Stmts
 	Functions []Function
-	Scalars   map[string]int
+	Scalars   map[string]float64
 	Arrays    map[string]int
 }
 
