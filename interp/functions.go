@@ -101,7 +101,7 @@ func (p *interp) callBuiltin(op Token, argExprs []Expr) (value, error) {
 	case F_LENGTH:
 		switch len(args) {
 		case 0:
-			return num(float64(len(p.line))+1), nil
+			return num(float64(len(p.line))), nil
 		default:
 			return num(float64(len(p.toString(args[0])))), nil
 		}

@@ -38,7 +38,7 @@ var (
 	varRegex    = regexp.MustCompile(`^([_a-zA-Z][_a-zA-Z0-9]*)=(.*)`)
 	myArray map[string]float64
 	myValues map[string]value
-	myOptimisedArray map[string]float64
+	// myOptimisedArray map[string]float64
 )
 
 // Error (actually *Error) is returned by Exec and Eval functions on
@@ -784,6 +784,7 @@ func (p *interp) execute(stmt Stmt) (error, float64, bool, map[string]float64) {
 var nativeFunction bool
 // Evaluate a single expression, return expression value and error
 func (p *interp) eval(expr Expr) (value, bool, error, map[string]float64) {
+	var myOptimisedArray map[string]float64
 	switch e := expr.(type) {
 	case *NumExpr:
 		// Number literal
