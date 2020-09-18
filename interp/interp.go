@@ -38,6 +38,7 @@ var (
 	varRegex    = regexp.MustCompile(`^([_a-zA-Z][_a-zA-Z0-9]*)=(.*)`)
 	myArray map[string]float64
 	myValues map[string]value
+	myOptimisedArray map[string]float64
 )
 
 // Error (actually *Error) is returned by Exec and Eval functions on
@@ -783,70 +784,69 @@ func (p *interp) execute(stmt Stmt) (error, float64, bool, map[string]float64) {
 var nativeFunction bool
 // Evaluate a single expression, return expression value and error
 func (p *interp) eval(expr Expr) (value, bool, error, map[string]float64) {
-	myArray := make(map[string]float64)
 	switch e := expr.(type) {
 	case *NumExpr:
 		// Number literal
-		return num(e.Value), nativeFunction, nil, myArray
+		return num(e.Value), nativeFunction, nil, myOptimisedArray
 
 	case *StrExpr:
 		// String literal
-		return str(e.Value), nativeFunction, nil, myArray
+		return str(e.Value), nativeFunction, nil, myOptimisedArray
 
 	case *FieldExpr: //returns what is needed
 		// $n field expression
 		index, nativeFunction, err, _ := p.eval(e.Index)
 		if err != nil {
-			return null(), nativeFunction, err, myArray
+			return null(), nativeFunction, err, myOptimisedArray
 		}
 		getfield, err := p.getField(int(index.num()))
-		return getfield, nativeFunction, err, myArray
+		return getfield, nativeFunction, err, myOptimisedArray
 
 	case *VarExpr:
 		// Variable read expression (scope is global, local, or special)
-		return p.getVar(e.Scope, e.Index), nativeFunction, nil, myArray
+		return p.getVar(e.Scope, e.Index), nativeFunction, nil, myOptimisedArray
 
 	case *RegExpr:
 		// Stand-alone /regex/ is equivalent to: $0 ~ /regex/
 		re, err := p.compileRegex(e.Regex)
 		if err != nil {
-			return null(), nativeFunction, err, myArray
+			return null(), nativeFunction, err, myOptimisedArray
 		}
-		return boolean(re.MatchString(p.line)), nativeFunction, nil, myArray
+		return boolean(re.MatchString(p.line)), nativeFunction, nil, myOptimisedArray
 
 	case *BinaryExpr:
 		// Binary expression. Note that && and || are special cases
 		// as they're short-circuit operators.
 		left, _, err, _ := p.eval(e.Left)
 		if err != nil {
-			return null(), nativeFunction, err, myArray
+			return null(), nativeFunction, err, myOptimisedArray
 		}
 		switch e.Op {
 		case AND:
 			if !left.boolean() {
-				return num(0), nativeFunction, nil, myArray
+				return num(0), nativeFunction, nil, myOptimisedArray
 			}
 			right, _, err, _ := p.eval(e.Right)
 			if err != nil {
-				return null(), nativeFunction, err, myArray
+				return null(), nativeFunction, err, myOptimisedArray
 			}
-			return boolean(right.boolean()), nativeFunction, nil, myArray
+			return boolean(right.boolean()), nativeFunction, nil, myOptimisedArray
 		case OR:
 			if left.boolean() {
-				return num(1), nativeFunction, nil, myArray
+				return num(1), nativeFunction, nil, myOptimisedArray
 			}
 			right, _, err, _ := p.eval(e.Right)
 			if err != nil {
-				return null(), nativeFunction, err, myArray
+				return null(), nativeFunction, err, myOptimisedArray
 			}
-			return boolean(right.boolean()), nativeFunction, nil, myArray
+			return boolean(right.boolean()), nativeFunction, nil, myOptimisedArray
 		default:
 			right, _, err, _ := p.eval(e.Right)
 			if err != nil {
-				return null(), nativeFunction, err, myArray
+				return null(), nativeFunction, err, myOptimisedArray
 			}
 			evalbinary, err := p.evalBinary(e.Op, left, right)
-			return evalbinary, nativeFunction, err, myArray
+			return evalbinary, nativeFunction, err, myOptimisedArray
 		}
 
 	case *IncrExpr:
@@ -856,7 +856,7 @@ func (p *interp) eval(expr Expr) (value, bool, error, map[string]float64) {
 		// index so we don't evaluate part of the expression twice
 		exprValue, arrayIndex, fieldIndex, err := p.evalForAugAssign(e.Expr)
 		if err != nil {
-			return null(), nativeFunction, err, myArray
+			return null(), nativeFunction, err, myOptimisedArray
 		}
 
 		// Then convert to number and increment or decrement
@@ -872,106 +872,108 @@ func (p *interp) eval(expr Expr) (value, bool, error, map[string]float64) {
 		// Finally assign back to expression and return the correct value
 		err = p.assignAug(e.Expr, arrayIndex, fieldIndex, incrValue)
 		if err != nil {
-			return null(), nativeFunction, err, myArray
+			return null(), nativeFunction, err, myOptimisedArray
 		}
 		if e.Pre {
-			return incrValue, nativeFunction, nil, myArray
+			return incrValue, nativeFunction, nil, myOptimisedArray
 		} else {
-			return num(exprNum), nativeFunction, nil, myArray
+			return num(exprNum), nativeFunction, nil, myOptimisedArray
 		}
 
 	case *AssignExpr:
 		// Assignment expression (returns right-hand side)
 		right, _, err, _ := p.eval(e.Right)
 		if err != nil {
-			return null(), nativeFunction, err, myArray
+			return null(), nativeFunction, err, myOptimisedArray
 		}
 		err = p.assign(e.Left, right)
 		if err != nil {
-			return null(), nativeFunction, err, myArray
+			return null(), nativeFunction, err, myOptimisedArray
 		}
-		return right, nativeFunction, nil, myArray
+		return right, nativeFunction, nil, myOptimisedArray
 
 	case *AugAssignExpr:
 		// Augmented assignment like += (returns right-hand side)
 		right, _, err, _ := p.eval(e.Right)
 		if err != nil {
-			return null(), nativeFunction, err, myArray
+			return null(), nativeFunction, err, myOptimisedArray
 		}
 		left, arrayIndex, fieldIndex, err := p.evalForAugAssign(e.Left)
 		if err != nil {
-			return null(), nativeFunction, err, myArray
+			return null(), nativeFunction, err, myOptimisedArray
 		}
 		// if e.Op.String() == "+" {
 		// 	myArray[arrayIndex] = right.n + left.n
 		// } else if e.Op.String() == "-" {
 		// 	myArray[arrayIndex] = right.n - left.n
 		// }
+
 		right, err = p.evalBinary(e.Op, left, right)
-		myArray[arrayIndex] = right.n
+		myOptimisedArray = make(map[string]float64)
+		myOptimisedArray[arrayIndex] = right.n
 		if err != nil {
-			return null(), nativeFunction, err, myArray
+			return null(), nativeFunction, err, myOptimisedArray
 		}
 		err = p.assignAug(e.Left, arrayIndex, fieldIndex, right)
 		if err != nil {
-			return null(), nativeFunction, err, myArray
+			return null(), nativeFunction, err, myOptimisedArray
 		}
-		return right, nativeFunction, nil, myArray
+		return right, nativeFunction, nil, myOptimisedArray
 
 	case *CondExpr:
 		// C-like ?: ternary conditional operator
 		cond, _, err, _ := p.eval(e.Cond)
 		if err != nil {
-			return null(), nativeFunction, err, myArray
+			return null(), nativeFunction, err, myOptimisedArray
 		}
 		if cond.boolean() {
 			zz, _, err, _ := p.eval(e.True)
-			return zz, nativeFunction, err, myArray
+			return zz, nativeFunction, err, myOptimisedArray
 		} else {
 			yy, _, err, _ := p.eval(e.False)
-			return yy, nativeFunction, err, myArray
+			return yy, nativeFunction, err, myOptimisedArray
 		}
 
 	case *IndexExpr:
 		// Read value from array by index
 		index, err := p.evalIndex(e.Index)
 		if err != nil {
-			return null(), nativeFunction, err, myArray
+			return null(), nativeFunction, err, myOptimisedArray
 		}
-		return p.getArrayValue(e.Array.Scope, e.Array.Index, index), nativeFunction, nil, myArray
+		return p.getArrayValue(e.Array.Scope, e.Array.Index, index), nativeFunction, nil, myOptimisedArray
 
 	case *CallExpr:
 		// Call a builtin function
 		callbuiltin, err := p.callBuiltin(e.Func, e.Args)
-		return callbuiltin, nativeFunction, err, myArray
+		return callbuiltin, nativeFunction, err, myOptimisedArray
 
 	case *UnaryExpr:
 		// Unary ! or + or -
 		v, _, err, _ := p.eval(e.Value)
 		if err != nil {
-			return null(), nativeFunction, err, myArray
+			return null(), nativeFunction, err, myOptimisedArray
 		}
-		return p.evalUnary(e.Op, v), nativeFunction, nil, myArray
+		return p.evalUnary(e.Op, v), nativeFunction, nil, myOptimisedArray
 
 	case *InExpr:
 		// "key in array" expression
 		index, err := p.evalIndex(e.Index)
 		if err != nil {
-			return null(), nativeFunction, err, myArray
+			return null(), nativeFunction, err, myOptimisedArray
 		}
 		array := p.arrays[p.getArrayIndex(e.Array.Scope, e.Array.Index)]
 		_, ok := array[index]
-		return boolean(ok), nativeFunction, nil, myArray
+		return boolean(ok), nativeFunction, nil, myOptimisedArray
 
 	case *UserCallExpr:
 		// Call user-defined or native Go function
 		if e.Native {
 			nativeFunction = true
 			callnative, err := p.callNative(e.Index, e.Args)
-			return callnative, nativeFunction, err, myArray
+			return callnative, nativeFunction, err, myOptimisedArray
 		} else {
 			calluser, err := p.callUser(e.Index, e.Args)
-			return calluser, nativeFunction, err, myArray
+			return calluser, nativeFunction, err, myOptimisedArray
 		}
 
 	case *GetlineExpr:
@@ -981,56 +983,56 @@ func (p *interp) eval(expr Expr) (value, bool, error, map[string]float64) {
 		case e.Command != nil:
 			nameValue, _, err, _ := p.eval(e.Command)
 			if err != nil {
-				return null(), nativeFunction, err, myArray
+				return null(), nativeFunction, err, myOptimisedArray
 			}
 			name := p.toString(nameValue)
 			scanner, err := p.getInputScannerPipe(name)
 			if err != nil {
-				return null(), nativeFunction, err, myArray
+				return null(), nativeFunction, err, myOptimisedArray
 			}
 			if !scanner.Scan() {
 				if err := scanner.Err(); err != nil {
-					return num(-1), nativeFunction, nil, myArray
+					return num(-1), nativeFunction, nil, myOptimisedArray
 				}
-				return num(0), nativeFunction, nil, myArray
+				return num(0), nativeFunction, nil, myOptimisedArray
 			}
 			line = scanner.Text()
 		case e.File != nil:
 			nameValue, _, err, _ := p.eval(e.File)
 			if err != nil {
-				return null(), nativeFunction, err, myArray
+				return null(), nativeFunction, err, myOptimisedArray
 			}
 			name := p.toString(nameValue)
 			scanner, err := p.getInputScannerFile(name)
 			if err != nil {
-				return null(), nativeFunction, err, myArray
+				return null(), nativeFunction, err, myOptimisedArray
 			}
 			if !scanner.Scan() {
 				if err := scanner.Err(); err != nil {
-					return num(-1), nativeFunction, nil, myArray
+					return num(-1), nativeFunction, nil, myOptimisedArray
 				}
-				return num(0), nativeFunction, nil, myArray
+				return num(0), nativeFunction, nil, myOptimisedArray
 			}
 			line = scanner.Text()
 		default:
 			var err error
 			line, err = p.nextLine()
 			if err == io.EOF {
-				return num(0), nativeFunction, nil, myArray
+				return num(0), nativeFunction, nil, myOptimisedArray
 			}
 			if err != nil {
-				return num(-1), nativeFunction, nil, myArray
+				return num(-1), nativeFunction, nil, myOptimisedArray
 			}
 		}
 		if e.Var != nil {
 			err := p.setVar(e.Var.Scope, e.Var.Index, str(line))
 			if err != nil {
-				return null(), nativeFunction, err, myArray
+				return null(), nativeFunction, err, myOptimisedArray
 			}
 		} else {
 			p.setLine(line)
 		}
-		return num(1), nativeFunction, nil, myArray
+		return num(1), nativeFunction, nil, myOptimisedArray
 
 	default:
 		// Should never happen
