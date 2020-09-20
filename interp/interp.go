@@ -910,9 +910,8 @@ func (p *interp) eval(expr Expr) (value, bool, error, map[int64]string) {
 		// }
 
 		right, err = p.evalBinary(e.Op, left, right)
-		myOptimisedArray = make(map[int64]string)
+		myOptimisedArray = make(map[int64]string, 1)
 		myOptimisedArray[int64(right.n)] = arrayIndex
-		fmt.Println(myOptimisedArray)
 		if err != nil {
 			return null(), nativeFunction, err, myOptimisedArray
 		}
@@ -920,7 +919,7 @@ func (p *interp) eval(expr Expr) (value, bool, error, map[int64]string) {
 		if err != nil {
 			return null(), nativeFunction, err, myOptimisedArray
 		}
-		return right, nativeFunction, nil, myOptimisedArra
+		return right, nativeFunction, nil, myOptimisedArray
 
 	case *CondExpr:
 		// C-like ?: ternary conditional operator
