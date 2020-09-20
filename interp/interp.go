@@ -536,14 +536,15 @@ lineLoop:
 func (p *interp) executes(stmts Stmts) (error, []float64, []bool, []map[int64]string) {
 	var results []float64
 	var natives []bool
-	var myArrays []map[int64]string	
+	var myArrays []map[int64]string
 	for _, s := range stmts {
-		err, res, myFunction, myArray := p.execute(s)
+		nativeFunction = false
+		err, res, nativeFunction, myArray := p.execute(s)
 		if err != nil {
 			return err, results, natives, myArrays
 		}
 		results = append(results, res)
-		natives = append(natives, myFunction)
+		natives = append(natives, nativeFunction)
 		myArrays = append(myArrays, myArray)
 	}
 
@@ -552,13 +553,12 @@ func (p *interp) executes(stmts Stmts) (error, []float64, []bool, []map[int64]st
 
 // Execute a single statement
 func (p *interp) execute(stmt Stmt) (error, float64, bool, map[int64]string) {
-	var nFunction bool
 	var myArray map[int64]string
 	switch s := stmt.(type) {
 	case *ExprStmt:
 		// Expression statement: simply throw away the expression value
-		res, nFunction, err, myArray := p.eval(s.Expr)
-		return err, res.n, nFunction, myArray
+		res, nativeFunction, err, myArray := p.eval(s.Expr)
+		return err, res.n, nativeFunction, myArray
 
 	case *PrintStmt:
 		// Print OFS-separated args followed by ORS (usually newline)
@@ -566,9 +566,9 @@ func (p *interp) execute(stmt Stmt) (error, float64, bool, map[int64]string) {
 		if len(s.Args) > 0 {
 			strs := make([]string, len(s.Args))
 			for i, a := range s.Args {
-				v, nFunction, err, myArray := p.eval(a)
+				v, nativeFunction, err, myArray := p.eval(a)
 				if err != nil {
-					return err, 0, nFunction, myArray
+					return err, 0, nativeFunction, myArray
 				}
 				strs[i] = v.str(p.outputFormat)
 			}
@@ -579,50 +579,50 @@ func (p *interp) execute(stmt Stmt) (error, float64, bool, map[int64]string) {
 		}
 		output, err := p.getOutputStream(s.Redirect, s.Dest)
 		if err != nil {
-			return err, 0, nFunction, myArray
+			return err, 0, nativeFunction, myArray
 		}
-		return p.printLine(output, line), 0, nFunction, myArray
+		return p.printLine(output, line), 0, nativeFunction, myArray
 
 	case *PrintfStmt:
 		// printf(fmt, arg1, arg2, ...): uses our version of sprintf
 		// to build the formatted string and then print that
-		formatValue, nFunction, err, myArray := p.eval(s.Args[0])
+		formatValue, nativeFunction, err, myArray := p.eval(s.Args[0])
 		if err != nil {
-			return err, 0, nFunction, myArray
+			return err, 0, nativeFunction, myArray
 		}
 		format := p.toString(formatValue)
 		args := make([]value, len(s.Args)-1)
 		for i, a := range s.Args[1:] {
-			args[i], nFunction, err, myArray = p.eval(a)
+			args[i], nativeFunction, err, myArray = p.eval(a)
 			if err != nil {
-				return err, 0, nFunction, myArray
+				return err, 0, nativeFunction, myArray
 			}
 		}
 		output, err := p.getOutputStream(s.Redirect, s.Dest)
 		if err != nil {
-			return err, 0, nFunction, myArray
+			return err, 0, nativeFunction, myArray
 		}
 		str, err := p.sprintf(format, args)
 		if err != nil {
-			return err, 0, nFunction, myArray
+			return err, 0, nativeFunction, myArray
 		}
 		err = writeOutput(output, str)
 		if err != nil {
-			return err, 0, nFunction, myArray
+			return err, 0, nativeFunction, myArray
 		}
 
 	case *IfStmt: //see what it has to return in order to add up correctly
-		v, nFunction, err, myArray := p.eval(s.Cond)
+		v, nativeFunction, err, myArray := p.eval(s.Cond)
 		if err != nil {
-			return err, 0, nFunction, myArray
+			return err, 0, nativeFunction, myArray
 		}
 		if v.boolean() {
 			err, _, _, _ := p.executes(s.Body)
-			return err, 0, nFunction, myArray
+			return err, 0, nativeFunction, myArray
 		} else {
 			// Doesn't do anything if s.Else is nil
 			err, _, _, _ := p.executes(s.Else)
-			return err, 0, nFunction, myArray
+			return err, 0, nativeFunction, myArray
 		}
 
 	case *ForStmt:
@@ -630,14 +630,14 @@ func (p *interp) execute(stmt Stmt) (error, float64, bool, map[int64]string) {
 		if s.Pre != nil {
 			err, _, _, _ := p.execute(s.Pre)
 			if err != nil {
-				return err, 0, nFunction, myArray
+				return err, 0, nativeFunction, myArray
 			}
 		}
 		for {
 			if s.Cond != nil {
-				v, nFunction, err, myArray := p.eval(s.Cond)
+				v, nativeFunction, err, myArray := p.eval(s.Cond)
 				if err != nil {
-					return err, 0, nFunction, myArray
+					return err, 0, nativeFunction, myArray
 				}
 				if !v.boolean() {
 					break
@@ -648,12 +648,12 @@ func (p *interp) execute(stmt Stmt) (error, float64, bool, map[int64]string) {
 				break
 			}
 			if err != nil && err != errContinue {
-				return err, 0, nFunction, myArray
+				return err, 0, nativeFunction, myArray
 			}
 			if s.Post != nil {
 				err, _, _, _ := p.execute(s.Post)
 				if err != nil {
-					return err, 0, nFunction, myArray
+					return err, 0, nativeFunction, myArray
 				}
 			}
 		}
@@ -664,7 +664,7 @@ func (p *interp) execute(stmt Stmt) (error, float64, bool, map[int64]string) {
 		for index := range array {
 			err := p.setVar(s.Var.Scope, s.Var.Index, str(index))
 			if err != nil {
-				return err, 0, nFunction, myArray
+				return err, 0, nativeFunction, myArray
 			}
 			err, _, _, _ = p.executes(s.Body)
 			if err == errBreak {
@@ -674,7 +674,7 @@ func (p *interp) execute(stmt Stmt) (error, float64, bool, map[int64]string) {
 				continue
 			}
 			if err != nil {
-				return err, 0, nFunction, myArray
+				return err, 0, nativeFunction, myArray
 			}
 		}
 
@@ -684,19 +684,19 @@ func (p *interp) execute(stmt Stmt) (error, float64, bool, map[int64]string) {
 		var v value
 		if s.Value != nil {
 			var err error
-			v, nFunction, err, myArray = p.eval(s.Value)
+			v, nativeFunction, err, myArray = p.eval(s.Value)
 			if err != nil {
-				return err, 0, nFunction, myArray
+				return err, 0, nativeFunction, myArray
 			}
 		}
-		return returnValue{v}, 0, nFunction, myArray
+		return returnValue{v}, 0, nativeFunction, myArray
 
 	case *WhileStmt:
 		// Simple "while (cond)" loop
 		for {
-			v, nFunction, err, myArray := p.eval(s.Cond)
+			v, nativeFunction, err, myArray := p.eval(s.Cond)
 			if err != nil {
-				return err, 0, nFunction, myArray
+				return err, 0, nativeFunction, myArray
 			}
 			if !v.boolean() {
 				break
@@ -709,7 +709,7 @@ func (p *interp) execute(stmt Stmt) (error, float64, bool, map[int64]string) {
 				continue
 			}
 			if err != nil {
-				return err, 0, nFunction, myArray
+				return err, 0, nativeFunction, myArray
 			}
 		}
 
@@ -724,11 +724,11 @@ func (p *interp) execute(stmt Stmt) (error, float64, bool, map[int64]string) {
 				continue
 			}
 			if err != nil {
-				return err, 0, nFunction, myArray
+				return err, 0, nativeFunction, myArray
 			}
-			v, nFunction, err, myArray := p.eval(s.Cond)
+			v, nativeFunction, err, myArray := p.eval(s.Cond)
 			if err != nil {
-				return err, 0, nFunction, myArray
+				return err, 0, nativeFunction, myArray
 			}
 			if !v.boolean() {
 				break
@@ -737,28 +737,28 @@ func (p *interp) execute(stmt Stmt) (error, float64, bool, map[int64]string) {
 
 	// Break, continue, next, and exit statements
 	case *BreakStmt:
-		return errBreak, 0, nFunction, myArray
+		return errBreak, 0, nativeFunction, myArray
 	case *ContinueStmt:
-		return errContinue, 0, nFunction, myArray
+		return errContinue, 0, nativeFunction, myArray
 	case *NextStmt:
-		return errNext, 0, nFunction, myArray
+		return errNext, 0, nativeFunction, myArray
 	case *ExitStmt:
 		if s.Status != nil {
-			status, nFunction, err, myArray := p.eval(s.Status)
+			status, nativeFunction, err, myArray := p.eval(s.Status)
 			if err != nil {
-				return err, 0, nFunction, myArray
+				return err, 0, nativeFunction, myArray
 			}
 			p.exitStatus = int(status.num())
 		}
 		// Return special errExit value "caught" by top-level executor
-		return errExit, 0, nFunction, myArray
+		return errExit, 0, nativeFunction, myArray
 
 	case *DeleteStmt:
 		if len(s.Index) > 0 {
 			// Delete single key from array
 			index, err := p.evalIndex(s.Index)
 			if err != nil {
-				return err, 0, nFunction, myArray
+				return err, 0, nativeFunction, myArray
 			}
 			array := p.arrays[p.getArrayIndex(s.Array.Scope, s.Array.Index)]
 			delete(array, index) // Does nothing if key isn't present
@@ -778,13 +778,12 @@ func (p *interp) execute(stmt Stmt) (error, float64, bool, map[int64]string) {
 		// Should never happen
 		panic(fmt.Sprintf("unexpected stmt type: %T", stmt))
 	}
-	return nil, 0, nFunction, myArray
+	return nil, 0, nativeFunction, myArray
 }
 
-// var nativeFunction bool
+var nativeFunction bool
 // Evaluate a single expression, return expression value and error
 func (p *interp) eval(expr Expr) (value, bool, error, map[int64]string) {
-	var nativeFunction bool
 	var myOptimisedArray map[int64]string
 	switch e := expr.(type) {
 	case *NumExpr:
@@ -911,9 +910,9 @@ func (p *interp) eval(expr Expr) (value, bool, error, map[int64]string) {
 		// }
 
 		right, err = p.evalBinary(e.Op, left, right)
-		myOptimisedArray = make(map[int64]string, 1)
+		myOptimisedArray = make(map[int64]string)
 		myOptimisedArray[int64(right.n)] = arrayIndex
-		// fmt.Println(myOptimisedArray)
+		fmt.Println(myOptimisedArray)
 		if err != nil {
 			return null(), nativeFunction, err, myOptimisedArray
 		}
@@ -921,7 +920,7 @@ func (p *interp) eval(expr Expr) (value, bool, error, map[int64]string) {
 		if err != nil {
 			return null(), nativeFunction, err, myOptimisedArray
 		}
-		return right, nativeFunction, nil, myOptimisedArray
+		return right, nativeFunction, nil, myOptimisedArra
 
 	case *CondExpr:
 		// C-like ?: ternary conditional operator
