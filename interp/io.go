@@ -408,6 +408,21 @@ func writeOutput(w io.Writer, s string) error {
 		s = strings.Replace(s, "\r\n", "\n", -1)
 		s = strings.Replace(s, "\n", "\r\n", -1)
 	}
+
+	stringSlice := strings.Fields(s)
+	var newStringSlice []string
+	if len(stringSlice ) > 0 {
+		for _, stringValue := range stringSlice {
+			intValue, _ := strconv.Atoi(stringValue[strings.Index(stringValue, ".")+1:])
+			if intValue == 0 {
+				newStringSlice = append(newStringSlice, stringValue[:strings.Index(stringValue, ".")])
+			} else {
+				newStringSlice = append(newStringSlice, stringValue)
+			}
+		}
+	}
+	s = strings.Join(newStringSlice, " ")
+	s += "\n"
 	_, err := io.WriteString(w, s)
 	return err
 }

@@ -308,6 +308,9 @@ func (p *interp) callUser(index int, args []Expr) (value, error) {
 
 // Call native-defined function with given name and arguments, return
 // return value (or null value if it doesn't return anything).
+var minLastValue float64
+var maxLastValue float64
+var lastValue float64
 func (p *interp) callNative(index int, args []Expr) (value, error) {
 	f := p.nativeFuncs[index]
 	minIn := len(f.in) // Mininum number of args we should pass
@@ -320,7 +323,22 @@ func (p *interp) callNative(index int, args []Expr) (value, error) {
 	// Build list of args to pass to function
 	values := make([]reflect.Value, 0, 7) // up to 7 args won't require heap allocation
 	for i, arg := range args {
+		if reflect.TypeOf(arg).Elem().Name() == "VarExpr" {
+			p.setVar(ScopeGlobal, 0, value{2, "", lastValue})
+		}
 		a, _, err, _ := p.eval(arg)
+		if index == 1 {
+			if maxLastValue == 0 || a.n > maxLastValue {
+				maxLastValue = a.n
+			}
+			lastValue = maxLastValue
+		} else if index == 2 {
+			if minLastValue == 0 || a.n < minLastValue {
+				minLastValue = a.n
+			}
+			lastValue = minLastValue
+		}
+
 		if err != nil {
 			return null(), err
 		}
@@ -333,6 +351,7 @@ func (p *interp) callNative(index int, args []Expr) (value, error) {
 		}
 		values = append(values, p.toNative(a, argType))
 	}
+
 	// Use zero value for any unspecified args
 	for i := len(args); i < minIn; i++ {
 		values = append(values, reflect.Zero(f.in[i]))

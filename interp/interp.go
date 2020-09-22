@@ -465,7 +465,6 @@ lineLoop:
 			return err, res, natives, newArray
 		}
 		p.setLine(line)
-
 		// Execute all the pattern-action blocks for each line
 		for i, action := range actions {
 			// First determine whether the pattern matches
