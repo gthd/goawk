@@ -24,6 +24,8 @@ type value struct {
 	typ valueType // Type of value
 	s   string    // String value (for typeStr)
 	n   float64   // Numeric value (for typeNum and typeNumStr)
+	offset int64
+	// op string
 }
 
 // Create a new null value
@@ -33,7 +35,7 @@ func null() value {
 
 // Create a new number value
 func num(n float64) value {
-	return value{typ: typeNum, n: n}
+	return value{typ: typeNum, n: n, }
 }
 
 // Create a new string value

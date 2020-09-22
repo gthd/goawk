@@ -318,13 +318,12 @@ func (p *interp) callNative(index int, args []Expr) (value, error) {
 	if f.isVariadic {
 		variadicType = f.in[len(f.in)-1].Elem()
 		minIn--
-	}
-
+	}	
 	// Build list of args to pass to function
 	values := make([]reflect.Value, 0, 7) // up to 7 args won't require heap allocation
 	for i, arg := range args {
 		if reflect.TypeOf(arg).Elem().Name() == "VarExpr" {
-			p.setVar(ScopeGlobal, 0, value{2, "", lastValue})
+			p.setVar(ScopeGlobal, 0, value{2, "", lastValue, p.offset})
 		}
 		a, _, err, _ := p.eval(arg)
 		if index == 1 {

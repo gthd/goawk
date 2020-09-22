@@ -19,6 +19,7 @@ import (
 	"os/exec"
 	"regexp"
 	"runtime"
+	// "reflect"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -88,6 +89,7 @@ type interp struct {
 	localArrays [][]int
 	callDepth   int
 	nativeFuncs []nativeFunc
+	offset int64
 
 	// File, line, and field handling
 	filename    string
@@ -194,6 +196,7 @@ type Config struct {
 	NoExec       bool
 	NoFileWrites bool
 	NoFileReads  bool
+	Offset int64
 }
 
 // ExecProgram executes the parsed program using the given interpreter
@@ -235,6 +238,7 @@ func ExecProgram(program *Program, config *Config) (int, error, []float64, []boo
 	p.noExec = config.NoExec
 	p.noFileWrites = config.NoFileWrites
 	p.noFileReads = config.NoFileReads
+	p.offset = config.Offset
 	err := p.initNativeFuncs(config.Funcs)
 	if err != nil {
 		return 0, err, res, natives, names, myArrays
@@ -295,7 +299,7 @@ func ExecProgram(program *Program, config *Config) (int, error, []float64, []boo
 		if err != nil && err != errExit {
 			return 0, err, res, natives, names, myArrays
 		}
-	}
+	}	
 	return p.exitStatus, nil, res, natives, names, myArrays
 }
 
@@ -320,7 +324,7 @@ func ExecOneThread(program *Program, config *Config, associativeArrays map[int]m
 				keys = append(keys, k)
 			}
 			for _, k := range keys {
-				myValues[k] = value{2, "", associativeArrays[i][k]}
+				myValues[k] = value{2, "", associativeArrays[i][k], p.offset}
 			}
 			p.arrays[i] = myValues
 		} else {
