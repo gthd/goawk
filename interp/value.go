@@ -35,7 +35,7 @@ func null() value {
 
 // Create a new number value
 func num(n float64) value {
-	return value{typ: typeNum, n: n, }
+	return value{typ: typeNum, n: n}
 }
 
 // Create a new string value

@@ -299,7 +299,7 @@ func ExecProgram(program *Program, config *Config) (int, error, []float64, []boo
 		if err != nil && err != errExit {
 			return 0, err, res, natives, names, myArrays
 		}
-	}	
+	}
 	return p.exitStatus, nil, res, natives, names, myArrays
 }
 
@@ -972,7 +972,7 @@ func (p *interp) eval(expr Expr) (value, bool, error, map[int64]string) {
 	case *UserCallExpr:
 		// Call user-defined or native Go function
 		if e.Native {
-			nativeFunction = true
+			nativeFunction = true			
 			callnative, err := p.callNative(e.Index, e.Args)
 			return callnative, nativeFunction, err, myOptimisedArray
 		} else {

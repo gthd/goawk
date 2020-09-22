@@ -318,7 +318,7 @@ func (p *interp) callNative(index int, args []Expr) (value, error) {
 	if f.isVariadic {
 		variadicType = f.in[len(f.in)-1].Elem()
 		minIn--
-	}	
+	}
 	// Build list of args to pass to function
 	values := make([]reflect.Value, 0, 7) // up to 7 args won't require heap allocation
 	for i, arg := range args {
@@ -463,7 +463,7 @@ func (p *interp) initNativeFuncs(funcs map[string]interface{}) error {
 
 	// Sort functions by name, then use those indexes to build slice
 	// (this has to match how the parser sets the indexes).
-	names := make([]string, 0, len(funcs))
+	names := make([]string, 0, len(funcs))	
 	for name := range funcs {
 		names = append(names, name)
 	}
