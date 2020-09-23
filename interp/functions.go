@@ -323,7 +323,7 @@ func (p *interp) callNative(index int, args []Expr) (value, error) {
 	values := make([]reflect.Value, 0, 7) // up to 7 args won't require heap allocation
 	for i, arg := range args {
 		if reflect.TypeOf(arg).Elem().Name() == "VarExpr" {
-			p.setVar(ScopeGlobal, 0, value{2, "", lastValue, p.offset})
+			p.setVar(ScopeGlobal, 0, value{2, "", lastValue})
 		}
 		a, _, err, _ := p.eval(arg)
 		if index == 1 {
@@ -463,7 +463,7 @@ func (p *interp) initNativeFuncs(funcs map[string]interface{}) error {
 
 	// Sort functions by name, then use those indexes to build slice
 	// (this has to match how the parser sets the indexes).
-	names := make([]string, 0, len(funcs))	
+	names := make([]string, 0, len(funcs))
 	for name := range funcs {
 		names = append(names, name)
 	}

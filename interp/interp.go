@@ -324,7 +324,7 @@ func ExecOneThread(program *Program, config *Config, associativeArrays map[int]m
 				keys = append(keys, k)
 			}
 			for _, k := range keys {
-				myValues[k] = value{2, "", associativeArrays[i][k], p.offset}
+				myValues[k] = value{2, "", associativeArrays[i][k]}
 			}
 			p.arrays[i] = myValues
 		} else {
@@ -559,7 +559,7 @@ func (p *interp) execute(stmt Stmt) (error, float64, bool, map[int64]string) {
 	var myArray map[int64]string
 	switch s := stmt.(type) {
 	case *ExprStmt:
-		// Expression statement: simply throw away the expression value
+		// Expression statement: simply throw away the expression value		
 		res, nativeFunction, err, myArray := p.eval(s.Expr)
 		return err, res.n, nativeFunction, myArray
 
@@ -821,6 +821,9 @@ func (p *interp) eval(expr Expr) (value, bool, error, map[int64]string) {
 	case *BinaryExpr:
 		// Binary expression. Note that && and || are special cases
 		// as they're short-circuit operators.
+		// if e.Left.String() == "NR" {
+		// 	fmt.Println(e.Right.String())
+		// }
 		left, _, err, _ := p.eval(e.Left)
 		if err != nil {
 			return null(), nativeFunction, err, myOptimisedArray
@@ -972,7 +975,7 @@ func (p *interp) eval(expr Expr) (value, bool, error, map[int64]string) {
 	case *UserCallExpr:
 		// Call user-defined or native Go function
 		if e.Native {
-			nativeFunction = true			
+			nativeFunction = true
 			callnative, err := p.callNative(e.Index, e.Args)
 			return callnative, nativeFunction, err, myOptimisedArray
 		} else {
@@ -1136,6 +1139,10 @@ func (p *interp) setVarByName(name, value string) error {
 	}
 	// Ignore variables that aren't defined in program
 	return nil
+}
+
+func (p *interp) setVariable(offset int, operation string) {
+
 }
 
 // Set a variable by index in given scope to given value
