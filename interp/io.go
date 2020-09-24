@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"log"
 	"unicode/utf8"
 
 	. "github.com/gthd/goawk/internal/ast"
@@ -20,11 +21,11 @@ import (
 
 // Print a line of output followed by a newline
 func (p *interp) printLine(writer io.Writer, line string) error {
-	err := writeOutput(writer, line)
+	err := p.writeOutput(writer, line)
 	if err != nil {
 		return err
 	}
-	return writeOutput(writer, p.outputRecordSep)
+	return p.writeOutput(writer, p.outputRecordSep)
 }
 
 // Implement a buffered version of WriteCloser so output is buffered
@@ -55,7 +56,7 @@ func (p *interp) getOutputStream(redirect Token, dest Expr) (io.Writer, error) {
 		return p.output, nil
 	}
 
-	destValue, _, err, _ := p.eval(dest)
+	destValue, err, _ := p.eval(dest)
 	if err != nil {
 		return nil, err
 	}
@@ -400,7 +401,7 @@ func (p *interp) nextLine() (string, error) {
 
 // Write output string to given writer, producing correct line endings
 // on Windows (CR LF)
-func writeOutput(w io.Writer, s string) error {
+func (p *interp) writeOutput(w io.Writer, s string) error {
 	if crlfNewline {
 		// First normalize to \n, then convert all newlines to \r\n
 		// (on Windows). NOTE: creating two new strings is almost
@@ -409,28 +410,49 @@ func writeOutput(w io.Writer, s string) error {
 		s = strings.Replace(s, "\n", "\r\n", -1)
 	}
 
-	if strings.Index(s, ".") != -1 {
-		stringSlice := strings.Fields(s)
-		var newStringSlice []string
-		if len(stringSlice ) > 0 {
-			for _, stringValue := range stringSlice {
-				intValue, _ := strconv.Atoi(stringValue[strings.Index(stringValue, ".")+1:])
-				if intValue == 0 {
-					if strings.Index(stringValue, ".") != -1 {
-						newStringSlice = append(newStringSlice, stringValue[:strings.Index(stringValue, ".")])
-					} else {
-						newStringSlice = append(newStringSlice, stringValue)
-					}
-				} else {
-					newStringSlice = append(newStringSlice, stringValue)
-				}
+	// if strings.Index(s, ".") != -1 {
+	// 	stringSlice := strings.Fields(s)
+	// 	var newStringSlice []string
+	// 	if len(stringSlice ) > 0 {
+	// 		for _, stringValue := range stringSlice {
+	// 			intValue, _ := strconv.Atoi(stringValue[strings.Index(stringValue, ".")+1:])
+	// 			if intValue == 0 {
+	// 				if strings.Index(stringValue, ".") != -1 {
+	// 					newStringSlice = append(newStringSlice, stringValue[:strings.Index(stringValue, ".")])
+	// 				} else {
+	// 					newStringSlice = append(newStringSlice, stringValue)
+	// 				}
+	// 			} else {
+	// 				newStringSlice = append(newStringSlice, stringValue)
+	// 			}
+	// 		}
+	// 	}
+	// 	s = strings.Join(newStringSlice, " ")
+	// 	s += "\n"
+	// }
+
+	if p.thread == 0 {
+		_, err := io.WriteString(w, s)
+		return err
+	} else {
+		f := "/home/george/Desktop/Github/pawk/temp_files/temp" + strconv.Itoa(p.thread) + ".txt"
+		var file *os.File
+		var myErr error
+		if _, err := os.Stat(f); err == nil {
+			file, myErr = os.OpenFile(f, os.O_WRONLY|os.O_APPEND, os.ModePerm) //open the file to process
+			if myErr != nil {
+				log.Fatal(myErr)
+			}
+		} else if os.IsNotExist(err) {
+			file, myErr = os.OpenFile(f, os.O_CREATE|os.O_WRONLY|os.O_APPEND, os.ModePerm)
+			if myErr != nil {
+				log.Fatal(myErr)
 			}
 		}
-		s = strings.Join(newStringSlice, " ")
-		s += "\n"
+		defer file.Close()
+		_, err := io.WriteString(file, s)
+		return err
 	}
-	_, err := io.WriteString(w, s)
-	return err
 }
 
 // Close all streams, commands, etc (after program execution)

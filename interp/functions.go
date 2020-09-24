@@ -27,14 +27,14 @@ func (p *interp) callBuiltin(op Token, argExprs []Expr) (value, error) {
 	// lvalue arg, so handle them as special cases
 	switch op {
 	case F_SPLIT:
-		strValue, _, err, _ := p.eval(argExprs[0])
+		strValue, err, _ := p.eval(argExprs[0])
 		if err != nil {
 			return null(), err
 		}
 		str := p.toString(strValue)
 		var fieldSep string
 		if len(argExprs) == 3 {
-			sepValue, _, err, _ := p.eval(argExprs[2])
+			sepValue, err, _ := p.eval(argExprs[2])
 			if err != nil {
 				return null(), err
 			}
@@ -50,19 +50,19 @@ func (p *interp) callBuiltin(op Token, argExprs []Expr) (value, error) {
 		return num(float64(n)), nil
 
 	case F_SUB, F_GSUB:
-		regexValue, _, err, _ := p.eval(argExprs[0])
+		regexValue, err, _ := p.eval(argExprs[0])
 		if err != nil {
 			return null(), err
 		}
 		regex := p.toString(regexValue)
-		replValue, _, err, _ := p.eval(argExprs[1])
+		replValue, err, _ := p.eval(argExprs[1])
 		if err != nil {
 			return null(), err
 		}
 		repl := p.toString(replValue)
 		var in string
 		if len(argExprs) == 3 {
-			inValue, _, err, _ := p.eval(argExprs[2])
+			inValue, err, _ := p.eval(argExprs[2])
 			if err != nil {
 				return null(), err
 			}
@@ -89,7 +89,7 @@ func (p *interp) callBuiltin(op Token, argExprs []Expr) (value, error) {
 	// require heap allocation)
 	args := make([]value, 0, 7)
 	for _, a := range argExprs {
-		arg, _, err, _ := p.eval(a)
+		arg, err, _ := p.eval(a)
 		if err != nil {
 			return null(), err
 		}
@@ -265,7 +265,7 @@ func (p *interp) callUser(index int, args []Expr) (value, error) {
 			a := arg.(*VarExpr)
 			arrays = append(arrays, p.getArrayIndex(a.Scope, a.Index))
 		} else {
-			argValue, _, err, _ := p.eval(arg)
+			argValue, err, _ := p.eval(arg)
 			if err != nil {
 				return null(), err
 			}
@@ -288,7 +288,7 @@ func (p *interp) callUser(index int, args []Expr) (value, error) {
 
 	// Execute the function!
 	p.callDepth++
-	err, _, _, _ := p.executes(f.Body)
+	err, _, _ := p.executes(f.Body)
 	p.callDepth--
 
 	// Pop the locals off the stack
@@ -325,7 +325,7 @@ func (p *interp) callNative(index int, args []Expr) (value, error) {
 		if reflect.TypeOf(arg).Elem().Name() == "VarExpr" {
 			p.setVar(ScopeGlobal, 0, value{2, "", lastValue})
 		}
-		a, _, err, _ := p.eval(arg)
+		a, err, _ := p.eval(arg)
 		if index == 1 {
 			if maxLastValue == 0 || a.n > maxLastValue {
 				maxLastValue = a.n
