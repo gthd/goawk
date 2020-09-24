@@ -24,8 +24,6 @@ type value struct {
 	typ valueType // Type of value
 	s   string    // String value (for typeStr)
 	n   float64   // Numeric value (for typeNum and typeNumStr)
-	// offset int64
-	// op string
 }
 
 // Create a new null value

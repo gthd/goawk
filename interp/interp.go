@@ -18,8 +18,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
-	"runtime"
-	// "reflect"
+	"runtime"	
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -89,7 +88,6 @@ type interp struct {
 	localArrays [][]int
 	callDepth   int
 	nativeFuncs []nativeFunc
-	offset int64
 
 	// File, line, and field handling
 	filename    string
@@ -238,7 +236,6 @@ func ExecProgram(program *Program, config *Config) (int, error, []float64, []boo
 	p.noExec = config.NoExec
 	p.noFileWrites = config.NoFileWrites
 	p.noFileReads = config.NoFileReads
-	p.offset = config.Offset
 	err := p.initNativeFuncs(config.Funcs)
 	if err != nil {
 		return 0, err, res, natives, names, myArrays
@@ -559,7 +556,7 @@ func (p *interp) execute(stmt Stmt) (error, float64, bool, map[int64]string) {
 	var myArray map[int64]string
 	switch s := stmt.(type) {
 	case *ExprStmt:
-		// Expression statement: simply throw away the expression value		
+		// Expression statement: simply throw away the expression value
 		res, nativeFunction, err, myArray := p.eval(s.Expr)
 		return err, res.n, nativeFunction, myArray
 
@@ -821,9 +818,6 @@ func (p *interp) eval(expr Expr) (value, bool, error, map[int64]string) {
 	case *BinaryExpr:
 		// Binary expression. Note that && and || are special cases
 		// as they're short-circuit operators.
-		// if e.Left.String() == "NR" {
-		// 	fmt.Println(e.Right.String())
-		// }
 		left, _, err, _ := p.eval(e.Left)
 		if err != nil {
 			return null(), nativeFunction, err, myOptimisedArray
@@ -1139,10 +1133,6 @@ func (p *interp) setVarByName(name, value string) error {
 	}
 	// Ignore variables that aren't defined in program
 	return nil
-}
-
-func (p *interp) setVariable(offset int, operation string) {
-
 }
 
 // Set a variable by index in given scope to given value

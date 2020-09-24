@@ -416,7 +416,11 @@ func writeOutput(w io.Writer, s string) error {
 			for _, stringValue := range stringSlice {
 				intValue, _ := strconv.Atoi(stringValue[strings.Index(stringValue, ".")+1:])
 				if intValue == 0 {
-					newStringSlice = append(newStringSlice, stringValue[:strings.Index(stringValue, ".")])
+					if strings.Index(stringValue, ".") != -1 {
+						newStringSlice = append(newStringSlice, stringValue[:strings.Index(stringValue, ".")])
+					} else {
+						newStringSlice = append(newStringSlice, stringValue)
+					}
 				} else {
 					newStringSlice = append(newStringSlice, stringValue)
 				}
@@ -424,7 +428,7 @@ func writeOutput(w io.Writer, s string) error {
 		}
 		s = strings.Join(newStringSlice, " ")
 		s += "\n"
-	} 
+	}
 	_, err := io.WriteString(w, s)
 	return err
 }
