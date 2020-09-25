@@ -19,6 +19,7 @@ import (
 	"os/exec"
 	"regexp"
 	"runtime"
+	// "reflect"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -889,7 +890,6 @@ func (p *interp) eval(expr Expr) (value, error, map[int64]string) {
 		if err != nil {
 			return null(), err, myOptimisedArray
 		}
-		// fmt.Println(right)
 		return right, nil, myOptimisedArray
 
 	case *AugAssignExpr:
@@ -967,7 +967,7 @@ func (p *interp) eval(expr Expr) (value, error, map[int64]string) {
 
 	case *UserCallExpr:
 		// Call user-defined or native Go function
-		if e.Native {
+		if e.Native {			
 			callnative, err := p.callNative(e.Index, e.Args)
 			return callnative, err, myOptimisedArray
 		} else {
