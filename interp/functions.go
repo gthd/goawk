@@ -13,7 +13,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 	"unicode/utf8"
@@ -21,66 +20,6 @@ import (
 	. "github.com/gthd/goawk/internal/ast"
 	. "github.com/gthd/goawk/lexer"
 )
-
-var (
-	minLast = &minStack{minValues: make(map[int]float64)}
-	maxLast = &maxStack{maxValues: make(map[int]float64)}
-	last = &lastStack{lastValues: make(map[int]float64)}
-)
-
-type minStack struct {
-	minValues map[int]float64
-	mutex1 sync.Mutex
-}
-
-type maxStack struct {
-	maxValues map[int]float64
-	mutex2 sync.Mutex
-}
-
-type lastStack struct {
-	lastValues map[int]float64
-	mutex3 sync.Mutex
-}
-
-func (stack *minStack) Push(value float64, thread int) {
-	stack.mutex1.Lock()
-	stack.minValues[thread] = value
-	stack.mutex1.Unlock()
-}
-
-func (stack *maxStack) Push(value float64, thread int) {
-	stack.mutex2.Lock()
-	stack.maxValues[thread] = value
-	stack.mutex2.Unlock()
-}
-
-func (stack *lastStack) Push(value float64, thread int) {
-	stack.mutex3.Lock()
-	stack.lastValues[thread] = value
-	stack.mutex3.Unlock()
-}
-
-func (stack *minStack) Pop(thread int) float64 {
-	stack.mutex1.Lock()
-	lastValue := stack.minValues[thread]
-	stack.mutex1.Unlock()
-	return lastValue
-}
-
-func (stack *maxStack) Pop(thread int) float64 {
-	stack.mutex2.Lock()
-	lastValue := stack.maxValues[thread]
-	stack.mutex2.Unlock()
-	return lastValue
-}
-
-func (stack *lastStack) Pop(thread int) float64 {
-	stack.mutex3.Lock()
-	lastValue := stack.lastValues[thread]
-	stack.mutex3.Unlock()
-	return lastValue
-}
 
 // Call builtin function specified by "op" with given args
 func (p *interp) callBuiltin(op Token, argExprs []Expr) (value, error) {
@@ -369,10 +308,10 @@ func (p *interp) callUser(index int, args []Expr) (value, error) {
 
 // Call native-defined function with given name and arguments, return
 // return value (or null value if it doesn't return anything).
+var minLastValue float64
+var maxLastValue float64
+var lastValue float64
 func (p *interp) callNative(index int, args []Expr) (value, error) {
-	var maxLastValue float64
-	var minLastValue float64
-	var lastValue float64
 
 	f := p.nativeFuncs[index]
 	minIn := len(f.in) // Mininum number of args we should pass
@@ -385,23 +324,20 @@ func (p *interp) callNative(index int, args []Expr) (value, error) {
 	values := make([]reflect.Value, 0, 7) // up to 7 args won't require heap allocation
 	for i, arg := range args {
 		if reflect.TypeOf(arg).Elem().Name() == "VarExpr" {
-			p.setVar(ScopeGlobal, 0, value{2, "", last.Pop(p.thread)})
+			p.setVar(ScopeGlobal, 0, value{2, "", lastValue})
 		}
 		a, err, _ := p.eval(arg)
 		if index == 1 {
-			maxLastValue = maxLast.Pop(p.thread)
 			if maxLastValue == 0 || a.n > maxLastValue {
-				maxLast.Push(a.n, p.thread)
+				maxLastValue = a.n
 			}
-			lastValue = maxLast.Pop(p.thread)
+			lastValue = maxLastValue
 		} else if index == 2 {
-			minLastValue = minLast.Pop(p.thread)
 			if minLastValue == 0 || a.n < minLastValue {
-				minLast.Push(a.n, p.thread)
+				minLastValue = a.n
 			}
-			lastValue = minLast.Pop(p.thread)
+			lastValue = minLastValue
 		}
-		last.Push(lastValue, p.thread)
 
 		if err != nil {
 			return null(), err
