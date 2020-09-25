@@ -285,7 +285,15 @@ func (p *parser) resolveVars(prog *Program) {
 	// assign indexes basically randomly)
 	prog.Scalars = make(map[string]float64)
 	prog.Arrays = make(map[string]int)
-	for name, info := range p.varTypes[""] {
+
+	names := make([]string, 0, len(p.varTypes[""]))
+	for k := range p.varTypes[""] {
+		names = append(names, k)
+	}
+
+	sort.Strings(names)	
+	for _, name := range names {
+		info := p.varTypes[""][name]
 		_, isFunc := p.functions[name]
 		if isFunc {
 			// Global var can't also be the name of a function

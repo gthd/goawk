@@ -22,9 +22,11 @@ import (
 	. "github.com/gthd/goawk/lexer"
 )
 
-// var (
-//
-// )
+var (
+	minLast = &minStack{minValues: make(map[int]float64)}
+	maxLast = &maxStack{maxValues: make(map[int]float64)}
+	last = &lastStack{lastValues: make(map[int]float64)}
+)
 
 type minStack struct {
 	minValues map[int]float64
@@ -372,11 +374,6 @@ func (p *interp) callUser(index int, args []Expr) (value, error) {
 // Call native-defined function with given name and arguments, return
 // return value (or null value if it doesn't return anything).
 func (p *interp) callNative(index int, args []Expr) (value, error) {
-
-	minLast := &minStack{minValues: make(map[int]float64)}
-	maxLast := &maxStack{maxValues: make(map[int]float64)}
-	last := &lastStack{lastValues: make(map[int]float64)}
-
 	var maxLastValue float64
 	var minLastValue float64
 	var lastValue float64
@@ -393,7 +390,7 @@ func (p *interp) callNative(index int, args []Expr) (value, error) {
 	for i, arg := range args {
 		if reflect.TypeOf(arg).Elem().Name() == "VarExpr" {
 			p.setVar(ScopeGlobal, 0, value{2, "", last.Pop(p.thread)})
-		}
+		}		
 		a, err, _ := p.eval(arg)
 		if index == 1 {
 			maxLastValue = maxLast.Pop(p.thread)
@@ -428,7 +425,7 @@ func (p *interp) callNative(index int, args []Expr) (value, error) {
 		values = append(values, reflect.Zero(f.in[i]))
 	}
 
-	// Call Go function, determine return value	
+	// Call Go function, determine return value
 	outs := f.value.Call(values)
 	switch len(outs) {
 	case 0:

@@ -750,7 +750,7 @@ func (p *parser) primary() Expr {
 			return p.multiExpr(exprs, parenPos)
 		}
 	case GETLINE:
-		p.next()
+		p.next()		
 		var varExpr *VarExpr
 		if p.tok == NAME {
 			varExpr = p.varRef(p.val, p.pos)

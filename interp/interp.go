@@ -22,6 +22,7 @@ import (
 	// "reflect"
 	"strconv"
 	"strings"
+	"sort"
 	"unicode/utf8"
 
 	. "github.com/gthd/goawk/internal/ast"
@@ -370,13 +371,17 @@ func ExecOneThread(program *Program, config *Config, associativeArrays map[int]m
 		}
 	}
 
-	variable_names := make([]string, 0, len(p.program.Scalars))
+	keys := make([]string, len(p.program.Scalars))
+	i := 0
 	for k := range p.program.Scalars {
-		variable_names = append(variable_names, k)
+		keys[i] = k
+		i++
 	}
 
-	for iter, name := range variable_names {
-		s := fmt.Sprintf("%f", p.program.Scalars[name])
+	sort.Strings(keys)
+  // To perform the opertion you want
+  for iter, k := range keys {
+		s := fmt.Sprintf("%f", p.program.Scalars[k])
 		err := p.setVar(ScopeGlobal, iter, numStr(s))
 		if err != nil {
 			return 0, err, res
@@ -967,7 +972,7 @@ func (p *interp) eval(expr Expr) (value, error, map[int64]string) {
 
 	case *UserCallExpr:
 		// Call user-defined or native Go function
-		if e.Native {			
+		if e.Native {
 			callnative, err := p.callNative(e.Index, e.Args)
 			return callnative, err, myOptimisedArray
 		} else {
