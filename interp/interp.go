@@ -409,6 +409,11 @@ func ExecOneThread(program *Program, config *Config, associativeArrays map[int]m
 	p.scanners = make(map[string]*bufio.Scanner)
 	defer p.closeAll()
 
+	err = p.execBeginEnd(program.Begin)
+	if err != nil && err != errExit {
+		return 0, err, res
+	}
+
 	if program.Actions == nil && program.End == nil {
 		return p.exitStatus, nil, res
 	}
