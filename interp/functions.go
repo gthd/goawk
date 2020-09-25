@@ -45,44 +45,40 @@ type lastStack struct {
 
 func (stack *minStack) Push(value float64, thread int) {
 	stack.mutex1.Lock()
-	defer stack.mutex1.Unlock()
 	stack.minValues[thread] = value
+	stack.mutex1.Unlock()
 }
 
 func (stack *maxStack) Push(value float64, thread int) {
 	stack.mutex2.Lock()
-	defer stack.mutex2.Unlock()
 	stack.maxValues[thread] = value
+	stack.mutex2.Unlock()
 }
 
 func (stack *lastStack) Push(value float64, thread int) {
 	stack.mutex3.Lock()
-	defer stack.mutex3.Unlock()
 	stack.lastValues[thread] = value
+	stack.mutex3.Unlock()
 }
 
 func (stack *minStack) Pop(thread int) float64 {
 	stack.mutex1.Lock()
-	defer stack.mutex1.Unlock()
 	lastValue := stack.minValues[thread]
+	stack.mutex1.Unlock()
 	return lastValue
 }
 
 func (stack *maxStack) Pop(thread int) float64 {
 	stack.mutex2.Lock()
-	defer stack.mutex2.Unlock()
-
 	lastValue := stack.maxValues[thread]
-
+	stack.mutex2.Unlock()
 	return lastValue
 }
 
 func (stack *lastStack) Pop(thread int) float64 {
 	stack.mutex3.Lock()
-	defer stack.mutex3.Unlock()
-
 	lastValue := stack.lastValues[thread]
-
+	stack.mutex3.Unlock()
 	return lastValue
 }
 
@@ -390,7 +386,7 @@ func (p *interp) callNative(index int, args []Expr) (value, error) {
 	for i, arg := range args {
 		if reflect.TypeOf(arg).Elem().Name() == "VarExpr" {
 			p.setVar(ScopeGlobal, 0, value{2, "", last.Pop(p.thread)})
-		}		
+		}
 		a, err, _ := p.eval(arg)
 		if index == 1 {
 			maxLastValue = maxLast.Pop(p.thread)
